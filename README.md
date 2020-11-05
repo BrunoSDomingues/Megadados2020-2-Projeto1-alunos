@@ -1,8 +1,16 @@
 # Megadados2020-2-Projeto1
 Projeto 1 da disciplina Megadados - repositorio para alunos
 
-Para executar o serviço rode
+## Integrantes
+- Bruno Domingues
+- Gabriel Duarte
 
-```
-uvicorn tasklist.main:app --reload
-```
+### Execução/Testes
+
+Antes de executar/testar o serviço:
+- Rode o arquivo config.bat
+- Entre na pasta `tasklist` via cmd/terminal
+
+Para executar o serviço rode o comando `uvicorn tasklist.main:app --reload`
+
+Para executar os testes rode o comando `pytest`
