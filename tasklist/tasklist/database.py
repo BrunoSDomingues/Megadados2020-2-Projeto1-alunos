@@ -10,24 +10,30 @@ from fastapi import Depends
 
 from utils.utils import get_config_filename, get_app_secrets_filename
 
-from .models import Task
+from .models import Task, User
 
 
 class DBSession:
     def __init__(self, connection: conn.MySQLConnection):
         self.connection = connection
 
-    def read_tasks(self, completed: bool = None):
-        query = 'SELECT BIN_TO_UUID(uuid), description, completed FROM tasks'
+    def read_tasks(self, completed: bool = None, user_uuid: str = ""):
+        query = "SELECT BIN_TO_UUID(uuid), description, completed FROM tasks"
         if completed is not None:
-            query += ' WHERE completed = '
+            query += " WHERE completed = "
             if completed:
-                query += 'True'
+                query += "True"
             else:
-                query += 'False'
+                query += "False"
+
+            if user_uuid != "" and user_uuid is not None:
+                query += " AND WHERE user_uuid = UUID_TO_BIN(%s)"
+
+        # elif user_uuid != "" and user_uuid is not None:
+        #     query += " WHERE user_uuid = UUID_TO_BIN(%s)"
 
         with self.connection.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query, user_uuid)
             db_results = cursor.fetchall()
 
         return {
@@ -43,25 +49,25 @@ class DBSession:
 
         with self.connection.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO tasks VALUES (UUID_TO_BIN(%s), %s, %s)',
-                (str(uuid_), item.description, item.completed),
+                "INSERT INTO tasks VALUES (UUID_TO_BIN(%s), %s, %s, %s)",
+                (str(uuid_), item.description, item.completed, item.user_uuid),
             )
         self.connection.commit()
 
         return uuid_
 
-    def read_task(self, uuid_: uuid.UUID):
+    def read_task(self, uuid_: uuid.UUID, user_uuid: uuid.UUID):
         if not self.__task_exists(uuid_):
             raise KeyError()
 
         with self.connection.cursor() as cursor:
             cursor.execute(
-                '''
+                """
                 SELECT description, completed
                 FROM tasks
-                WHERE uuid = UUID_TO_BIN(%s)
-                ''',
-                (str(uuid_), ),
+                WHERE uuid = UUID_TO_BIN(%s) AND user_uuid=UUID_TO_BIN(%s)
+                """,
+                (str(uuid_), user_uuid),
             )
             result = cursor.fetchone()
 
@@ -73,60 +79,103 @@ class DBSession:
 
         with self.connection.cursor() as cursor:
             cursor.execute(
-                '''
+                """
                 UPDATE tasks SET description=%s, completed=%s
-                WHERE uuid=UUID_TO_BIN(%s)
-                ''',
-                (item.description, item.completed, str(uuid_)),
+                WHERE uuid=UUID_TO_BIN(%s) AND user_uuid=UUID_TO_BIN(%s)
+                """,
+                (item.description, item.completed, str(uuid_), item.user_uuid),
             )
         self.connection.commit()
 
-    def remove_task(self, uuid_):
+    def remove_task(self, uuid_, user_uuid):
         if not self.__task_exists(uuid_):
             raise KeyError()
 
         with self.connection.cursor() as cursor:
             cursor.execute(
-                'DELETE FROM tasks WHERE uuid=UUID_TO_BIN(%s)',
-                (str(uuid_), ),
+                "DELETE FROM tasks WHERE uuid=UUID_TO_BIN(%s) AND user_uuid=UUID_TO_BIN(%s)",
+                (str(uuid_), user_uuid),
             )
         self.connection.commit()
 
     def remove_all_tasks(self):
         with self.connection.cursor() as cursor:
-            cursor.execute('DELETE FROM tasks')
+            cursor.execute("DELETE FROM tasks")
         self.connection.commit()
 
     def __task_exists(self, uuid_: uuid.UUID):
         with self.connection.cursor() as cursor:
             cursor.execute(
-                '''
+                """
                 SELECT EXISTS(
                     SELECT 1 FROM tasks WHERE uuid=UUID_TO_BIN(%s)
                 )
-                ''',
-                (str(uuid_), ),
+                """,
+                (str(uuid_),),
             )
             results = cursor.fetchone()
             found = bool(results[0])
 
         return found
 
+    def create_user(self, item: User):
+        uuid_ = uuid.uuid4()
+
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO users VALUES (UUID_TO_BIN(%s), %s)",
+                (str(uuid_), item.name),
+            )
+        self.connection.commit()
+
+        return uuid_
+
+    def delete_user(self, user_uuid):
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM users WHERE user_uuid=UUID_TO_BIN(%s)",
+                (user_uuid),
+            )
+        self.connection.commit()
+
+        return 200
+
+    def update_user(self, name: str, user_uuid):
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET name=%s WHERE user_uuid=UUID_TO_BIN(%s)",
+                (name, user_uuid),
+            )
+        self.connection.commit()
+
+        return 200
+
+    def read_user(self, user_uuid):
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT name FROM users WHERE user_uuid=UUID_TO_BIN(%s)",
+                (user_uuid),
+            )
+        self.connection.commit()
+        result = cursor.fetchone()
+
+        return User(name=result[0])
+
 
 @lru_cache
 def get_credentials(
-        config_file_name: str = Depends(get_config_filename),
-        secrets_file_name: str = Depends(get_app_secrets_filename),
+    config_file_name: str = Depends(get_config_filename),
+    secrets_file_name: str = Depends(get_app_secrets_filename),
 ):
-    with open(config_file_name, 'r') as file:
+    with open(config_file_name, "r") as file:
         config = json.load(file)
-    with open(secrets_file_name, 'r') as file:
+    with open(secrets_file_name, "r") as file:
         secrets = json.load(file)
     return {
-        'user': secrets['user'],
-        'password': secrets['password'],
-        'host': config['db_host'],
-        'database': config['database'],
+        "user": secrets["user"],
+        "password": secrets["password"],
+        "host": config["db_host"],
+        "database": config["database"],
     }
 
 
