@@ -3,13 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 
-from uuid import uuid4
 
 # pylint: disable=too-few-public-methods
-
-user_uuid_str = str(uuid4)
-
-
 class Task(BaseModel):
     description: Optional[str] = Field(
         "no description",
@@ -20,10 +15,10 @@ class Task(BaseModel):
         False,
         title="Shows whether the task was completed",
     )
+
     user_uuid: Optional[str] = Field(
-        "76d41d93-b887-49e1-a697-f13758dd097a",
-        title="Owner UUID",
-        max_length=32,
+        title="User id",
+        max_length=1024,
     )
 
     class Config:
@@ -31,7 +26,7 @@ class Task(BaseModel):
             "example": {
                 "description": "Buy baby diapers",
                 "completed": False,
-                "user_uuid": user_uuid_str,
+                "user_uuid": "1231233123",
             }
         }
 
@@ -39,14 +34,13 @@ class Task(BaseModel):
 class User(BaseModel):
     name: Optional[str] = Field(
         "no name",
-        title="user name",
-        max_length=1024,
-    )
-    user_uuid: Optional[str] = Field(
-        "",
-        title="Owner UUID",
-        max_length=32,
+        title="Task name",
+        max_length=64,
     )
 
     class Config:
-        schema_extra = {"example": {"name": "TegTradePro", "user_uuid": user_uuid_str}}
+        schema_extra = {
+            "example": {
+                "name": "Roberto Teixeira",
+            }
+        }
