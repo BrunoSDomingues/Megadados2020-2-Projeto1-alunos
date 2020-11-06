@@ -8,8 +8,8 @@ Projeto 1 da disciplina Megadados - repositorio para alunos
 ### Execução/Testes
 
 Antes de executar/testar o serviço:
-- Rode o arquivo config.bat
-- Entre na pasta `tasklist` via cmd/terminal
+- Rode o script config.bat
+- Entre na pasta `tasklist` via cmd
 
 Para executar o serviço rode o comando `uvicorn tasklist.main:app --reload`
 
